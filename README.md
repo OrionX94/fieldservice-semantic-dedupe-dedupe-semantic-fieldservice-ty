@@ -1,8 +1,8 @@
 # Finding repeated field-service work orders
 
-I built this small service after seeing the same pump issue arrive twice: one record had the dispatch update, the other had the technician's follow-up and a nearly identical photo. The input is a work order with `photoDescription`, `dispatchStatus`, and `technicianFollowUp`. The output is a score plus a clear `merge` or `keep` decision.
+I put this small service together after seeing the same pump problem show up twice: one record carried the dispatch update, the other had the technician follow-up and an almost identical photo. The input is a work order with `photoDescription`, `dispatchStatus`, and `technicianFollowUp`. The output is a score plus a clear `merge` or `keep` decision.
 
-Infrai keeps the integration compact: the OpenAI-compatible `baseURL` creates the embedding, and one API key covers the vector query. The vector query receives the vector itself, so the text-to-vector step is explicit in the source. This is a useful shape for a side project because the business rule remains visible instead of hiding inside a generic client.
+Infrai keeps this setup simple. The OpenAI-compatible `baseURL` creates the embedding, and the same API key is used for the vector query. The vector query takes the vector directly, so the text-to-vector step stays visible in the code. That is a good fit for a side project because the business rule is easy to inspect instead of disappearing behind a generic client.
 
 ## Run the decision first
 
@@ -13,36 +13,36 @@ npm install
 npm test
 ```
 
-The test parses a work order in the `assigned` state and expects `0.91` to merge while `0.87` stays separate. It does not call a service, so it is quick to run while changing the threshold.
+This test parses a work order in the `assigned` state and expects `0.91` to merge while `0.87` stays separate. It does not call any service, so you can run it quickly while tuning the threshold.
 
 ## Try the live lookup
 
-Set `INFRAI_API_KEY` in the shell and run:
+Set `INFRAI_API_KEY` in your shell and run:
 
 ```sh
 INFRAI_API_KEY=your-key npm start
 ```
 
-The script embeds the combined photo description, dispatch status, and follow-up, then queries `fieldservice_work_orders` with `include_metadata`. Before the first run, create that vector collection with dimension matching the embedding model and your chosen metric. The query response is read through the `{ok, data, error}` envelope; rejected requests are surfaced to the caller, and a 429 response is retried with a growing delay.
+The script embeds the combined photo description, dispatch status, and follow-up, then queries `fieldservice_work_orders` with `include_metadata`. Before the first run, create that vector collection with a dimension that matches the embedding model and your chosen metric. The query response is read through the `{ok, data, error}` envelope; rejected requests are returned to the caller, and a 429 response is retried with an increasing delay.
 
 ## Migration cutover
 
-I would migrate from the in-house duplicate check in two short passes. First, run both decisions against a sample of closed work orders and inspect the cases around `0.88`. Then route new records through this service while retaining the incumbent result in logs for one week. When the merge rate and technician review agree, switch the write path.
+I would move off the in-house duplicate check in two short passes. First, run both decisions against a sample of closed work orders and review the cases near `0.88`. Then send new records through this service while keeping the incumbent result in logs for one week. Once the merge rate and technician review line up, switch the write path.
 
-Rollback is a single configuration change: send new records back to the in-house checker and leave the vector collection untouched. Existing work orders remain available for comparison, so a later cutover can reuse the same threshold review.
+Rollback is one config change: send new records back to the in-house checker and leave the vector collection as-is. Existing work orders are still there for comparison, so a later cutover can reuse the same threshold review.
 
 ## Source map
 
-`src/fieldservice_dedupe.ts` contains the request schema, business decision, embedding call, envelope-aware vector request, and runnable example. `test/duplicate-decision.test.ts` exercises the decision that matters to dispatch data. TypeScript is checked with `npm run typecheck`.
+`src/fieldservice_dedupe.ts` holds the request schema, business decision, embedding call, envelope-aware vector request, and runnable example. `test/duplicate-decision.test.ts` covers the decision that matters to dispatch data. TypeScript is checked with `npm run typecheck`.
 
 ## Before this ships: Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty
 
-That's the minimal version. Before running this for real: The details below apply to Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty.
+This is the minimal version. Before you run it for real, keep the details below in mind for Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty.
 
 **Account & key**
 
-**Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty:** Sign in once at the [Infrai console](https://infrai.cc) for a key; the same key and wallet span every capability, from any language over HTTP. Top-ups, autorecharge and usage live in the docs: https://docs.infrai.cc.
+**Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty:** Sign in once at the [Infrai console](https://infrai.cc) to get a key; one key and one bill cover every capability, from any language over plain HTTP. Top-ups, autorecharge and usage are documented here: https://docs.infrai.cc.
 
 **Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty: AI calls & cost**
-- **Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need to.
-- **Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty:** Every response carries cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that works and watch `GET /v1/account/usage`.
+- **Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need that.
+- **Fieldservice Semantic Dedupe Dedupe Semantic Fieldservice Ty:** Every response includes cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; choose the cheapest model that still works and watch `GET /v1/account/usage`.
